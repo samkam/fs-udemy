@@ -4,6 +4,17 @@ const keys = require("../config/keys");
 const mongoose = require('mongoose');
 
 const User = mongoose.model('users');
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser((id,done) => {
+  User.findById(id)
+    .then(user => {
+      done(null, user);
+    })
+});
 passport.use(
     new GoogleStrategy(
       {
@@ -13,17 +24,16 @@ passport.use(
       },
       (accessToken, refreshToken, profile, done) => {
         console.log("profile", profile.id);
-        var user = User({ googleId: profile.id});
-        user.save();
-        console.log(user);
-
-        User.find({}, function(err, users){
-          if (err) throw err;
-          console.log(JSON.stringify(users, null, 4));
-        });
-        //console.log("accessToken", accessToken);
-        //console.log("refresh token", refreshToken);
-
+        User.findOne({googleId: profile.id})
+          .then( (existingUser) => {
+            if (existingUser) {
+              done(null, existingUser);
+            } else {
+              console.log("new user created");
+              new User({ googleId: profile.id}).save()
+                .then( user => done(null, user));
+            }
+          });
       }
     )
   );
